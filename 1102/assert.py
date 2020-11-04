@@ -4,5 +4,5 @@ def isEven(n):
     else:
         return False
 
-assert isEven(81) # 조건이 False이면 예외 발생
+assert isEven(80) # 조건이 False이면 예외 발생
 print('Even')
