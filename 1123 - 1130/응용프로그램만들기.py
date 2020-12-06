@@ -1,10 +1,15 @@
 import pygame
 import random
+from time import sleep
 
 WHITE = (255,255,255)
 pad_width = 1024
 pad_height = 1024
 background_height = -1024
+meteor_width = 75
+aircraft_width = 180
+aircraft_height = 180
+
 
 def drawObject(obj, x, y):
     global gamepad
@@ -22,10 +27,15 @@ def airplane(x,y):
 '''
 def runGame():
     global gamepad,aircraft, clock, background1, background2
-    global meteor, fires
+    global meteor, fires, bullet, boom
     
-    x = pad_width * 0.80
-    y = pad_height * 0.80
+    isShotMeteor = False
+    boom_count = 0
+    
+    bullet_xy = []
+    
+    x = pad_width * 0.80 #819.2
+    y = pad_height * 0.80 #819.2
     x_change = 0
     
     background1_y = 0
@@ -45,14 +55,20 @@ def runGame():
             if event.type == pygame.QUIT:#이벤트 1. 창을 닫으면 종료
                 crashed = True
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
+                if event.key == pygame.K_LEFT: #왼쪽 이동
                     x_change = -10
-                elif event.key == pygame.K_RIGHT:
+                elif event.key == pygame.K_RIGHT: #오른쪽 이동
                     x_change = 10
+                elif event.key == pygame.K_LCTRL: #공격
+                    bullet_x = x + aircraft_width/2 - 3 #819.2 + 180/2
+                    bullet_y = y# + aircraft_height #819.2# + 180
+                    bullet_xy.append([bullet_x, bullet_y]) #리스트에 추가
+                elif event.key == pygame.K_SPACE: #일시정지
+                    sleep(2)
+                    
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
                     x_change = 0
-        x += x_change
                 
         #게임판을 다시 그림
         gamepad.fill(WHITE)
@@ -67,13 +83,21 @@ def runGame():
         drawObject(background1,0, background1_y)
         drawObject(background2,0, background2_y)
         
+        #비행선 위치
+        x += x_change #x = 819.2
+        if x<0: 
+            x = 0
+        elif x > pad_width - aircraft_width:
+            x = pad_width - aircraft_width
+        drawObject(aircraft, x, y)
+        
         #유성 위치
         meteor_y += 7
         if meteor_y >= pad_height:
-            meteor_x = random.randrange(0, pad_width)
+            meteor_x = random.randrange(0, pad_width) #0~pad_width 랜덤지정
             meteor_y = 0
         drawObject(meteor, meteor_x, meteor_y)
-         
+        
         #불덩이 위치    
         if fire == None:
             fire_y += 20
@@ -87,10 +111,36 @@ def runGame():
             fire = fires[0]
         if fire != None:
             drawObject(fire, fire_x, fire_y)
-        
-        #비행선 위치
-        drawObject(aircraft, x, y)
-       
+            
+        #총알 위치
+        if len(bullet_xy) != 0:
+            for i, bxy in enumerate(bullet_xy):
+                bxy[1] -= 15 #y좌표
+                #print(i)
+                #print(bxy)
+                bullet_xy[i][1] = bxy[1]
+                
+                #boom check
+                if bxy[1] < meteor_y: #총알 y위치 < 유성 y위치 (만나거나 둘이 지나쳤다면)
+                    if bxy[0] > meteor_x and bxy[0] < meteor_x + meteor_width: #유성 width 안이라면
+                        bullet_xy.remove(bxy)
+                        isShotMeteor = True
+                if bxy[1] < 0:
+                    bullet_xy.remove(bxy)             
+        if len(bullet_xy) != 0:
+            for bx, by in bullet_xy:
+                drawObject(bullet, bx, by)     
+        if not isShotMeteor:
+            drawObject(meteor, meteor_x, meteor_y)
+        else:
+            drawObject(boom, meteor_x, meteor_y)
+            boom_count += 1
+            if boom_count > 5:
+                boom_count = 0
+                meteor_x = random.randrange(0, pad_width - meteor_width)
+                meteor_y = pad_height
+                isShotMeteor = False
+                
         pygame.display.update()
         clock.tick(120)
     pygame.quit()
@@ -98,7 +148,7 @@ def runGame():
 
 def initGame():
     global gamepad, aircraft, clock, background1, background2
-    global meteor, fires
+    global meteor, fires, bullet, boom
     
     fires = []# 파이어, None을 담을 리스트
     
@@ -110,10 +160,13 @@ def initGame():
     background2 = background1.copy() #5-1 움직일 배경 복사
     meteor = pygame.image.load('메테오.png') #6-1. 장애물 로드
     fires.append(pygame.image.load('fireball.png'))#6-2 장애물 로드
-    fires.append(pygame.image.load('fireball2.png'))#6-3 장애물 로
+    fires.append(pygame.image.load('fireball2.png'))#6-3 장애물 로드
     
     for i in range(5):  #불덩이 시간차
         fires.append(None)
+        
+    bullet = pygame.image.load('bullet.png') #7 총알 로드
+    boom = pygame.image.load('boom.png')#8 피격 이펙트 로드
     
     clock = pygame.time.Clock()#4.fps 설정
     runGame()#5. 초기화 마무리 후 호출
