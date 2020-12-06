@@ -1,9 +1,10 @@
+import os
 import pygame
 import random
 from time import sleep
 
 WHITE = (255,255,255)
-RED = (255,0 ,0)
+RED = (255,0,0)
 pad_width = 1024
 pad_height = 1024
 background_height = -1024
@@ -15,6 +16,20 @@ fireball1_width = 56
 fireball1_height = 136
 fireball2_width = 59
 fireball2_height = 85
+
+def drawScore(count, hit):
+    global gamepad
+    
+    font = pygame.font.SysFont(None, 25)
+    text = font.render('Meteor Passed: ' + str(count), True, WHITE)
+    hit_text = font.render('Meteor hit: ' + str(hit), True, WHITE)
+    gamepad.blit(text, (0,0))
+    gamepad.blit(hit_text, (0,15))
+    
+
+def gameOver():
+    global gamepad
+    dispMessage('Game Over')
 
 def textObj(text, font):
     textSurface = font.render(text, True, RED)
@@ -46,6 +61,9 @@ def runGame():
     isShotMeteor = False
     boom_count = 0
     
+    meteor_passed = 0
+    meteor_hit = 0
+    
     bullet_xy = []
     
     x = pad_width * 0.80 #819.2
@@ -55,7 +73,7 @@ def runGame():
     background1_y = 0
     background2_y = background_height
     
-    meteor_x = random.randrange(0, pad_width)
+    meteor_x = random.randrange(aircraft_width/2, pad_width - aircraft_width/2)
     meteor_y = 0
     
     fire_x = random.randrange(0, pad_width)
@@ -65,6 +83,7 @@ def runGame():
     
     crashed = False #6. 종료를 위한 플래그
     while not crashed:
+        print(meteor_x)
         for event in pygame.event.get(): #7. 다양한 이벤트를 반복해서 리턴해준다
             if event.type == pygame.QUIT:#이벤트 1. 창을 닫으면 종료
                 crashed = True
@@ -77,13 +96,11 @@ def runGame():
                     bullet_x = x + aircraft_width/2 - 3 #819.2 + 180/2
                     bullet_y = y# + aircraft_height #819.2# + 180
                     bullet_xy.append([bullet_x, bullet_y]) #리스트에 추가
-                elif event.key == pygame.K_SPACE: #일시정지
-                    sleep(2)
                     
-            elif event.type == pygame.KEYUP:
+            if event.type == pygame.KEYUP:
                 if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
                     x_change = 0
-                
+        
         #게임판을 다시 그림
         gamepad.fill(WHITE)
         
@@ -97,24 +114,29 @@ def runGame():
         drawObject(background1,0, background1_y)
         drawObject(background2,0, background2_y)
         
+        drawScore(meteor_passed, meteor_hit)
+        
+        if meteor_passed >= 3:
+            gameOver()
+        
         #비행선 위치
         x += x_change #x = 819.2
         if x<0: 
             x = 0
         elif x > pad_width - aircraft_width:
             x = pad_width - aircraft_width
-        drawObject(aircraft, x, y)
         
         #유성 위치
-        meteor_y += 7
+        meteor_y += 5
         if meteor_y >= pad_height:
-            meteor_x = random.randrange(0, pad_width) #0~pad_width 랜덤지정
+            meteor_passed += 1
+            meteor_x = random.randrange(aircraft_width/2, pad_width - aircraft_width/2)
             meteor_y = 0
-        drawObject(meteor, meteor_x, meteor_y)
+        
         
         #불덩이 위치    
         if fire[1] == None:
-            fire_y += 20
+            fire_y += 15
         else:
             fire_y += 10
         
@@ -152,13 +174,13 @@ def runGame():
                 #유성이 비행선 width 안일 때  
                 if x<fire_x and x+aircraft_width > fire_x+fireball_width:
                     crash()
+                    
+        drawObject(aircraft, x, y)
 
         #총알 위치
         if len(bullet_xy) != 0:
             for i, bxy in enumerate(bullet_xy):
                 bxy[1] -= 15 #y좌표
-                #print(i)
-                #print(bxy)
                 bullet_xy[i][1] = bxy[1]
                 
                 #boom check
@@ -166,18 +188,25 @@ def runGame():
                     if bxy[0] > meteor_x and bxy[0] < meteor_x + meteor_width: #유성 width 안이라면
                         bullet_xy.remove(bxy)
                         isShotMeteor = True
+                        
                 if bxy[1] < 0:
-                    bullet_xy.remove(bxy)             
+                    try:
+                        bullet_xy.remove(bxy)
+                    except:
+                        pass
         if len(bullet_xy) != 0:
             for bx, by in bullet_xy:
-                drawObject(bullet, bx, by)     
+                drawObject(bullet, bx, by)
+                              
         if not isShotMeteor: #총알이 유성에 맞지 않았다면 실행
             drawObject(meteor, meteor_x, meteor_y)
         else: #총알이 유성에 맞으면 실행
             drawObject(boom, meteor_x, meteor_y)
             boom_count += 1
-            if boom_count > 5:
+            if boom_count > 5: #위치 다시 랜덤
                 boom_count = 0
+                meteor_passed -= 1
+                meteor_hit += 1
                 meteor_x = random.randrange(0, pad_width - meteor_width)
                 meteor_y = pad_height
                 isShotMeteor = False
