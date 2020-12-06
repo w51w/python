@@ -3,6 +3,7 @@ import random
 from time import sleep
 
 WHITE = (255,255,255)
+RED = (255,0 ,0)
 pad_width = 1024
 pad_height = 1024
 background_height = -1024
@@ -10,21 +11,34 @@ meteor_width = 75
 aircraft_width = 180
 aircraft_height = 180
 
+fireball1_width = 56
+fireball1_height = 136
+fireball2_width = 59
+fireball2_height = 85
+
+def textObj(text, font):
+    textSurface = font.render(text, True, RED)
+    return textSurface, textSurface.get_rect()
+
+def dispMessage(text):
+    global gamepad
+    
+    largeText = pygame.font.Font('freesansbold.ttf', 115)
+    TextSurf, TextRect = textObj(text, largeText)
+    TextRect.center = ((pad_width/2),(pad_height/2))
+    gamepad.blit(TextSurf, TextRect)
+    pygame.display.update()
+    sleep(2)
+    runGame()
+    
+def crash():
+    global gamepad
+    dispMessage("Crashed!")
 
 def drawObject(obj, x, y):
     global gamepad
     gamepad.blit(obj, (x,y))
 
-'''
-drawObject로 통합
-def back(background, x,y):
-    global gamepad
-    gamepad.blit(background, (x,y))
-
-def airplane(x,y):
-    global gamepad, aircraft
-    gamepad.blit(aircraft, (x,y))
-'''
 def runGame():
     global gamepad,aircraft, clock, background1, background2
     global meteor, fires, bullet, boom
@@ -99,7 +113,7 @@ def runGame():
         drawObject(meteor, meteor_x, meteor_y)
         
         #불덩이 위치    
-        if fire == None:
+        if fire[1] == None:
             fire_y += 20
         else:
             fire_y += 10
@@ -109,9 +123,36 @@ def runGame():
             fire_y = 0
             random.shuffle(fires)
             fire = fires[0]
-        if fire != None:
-            drawObject(fire, fire_x, fire_y)
+        if fire[1] != None:
+            drawObject(fire[1], fire_x, fire_y)
+        
+        #유성과 충돌
+        if y < meteor_y: #비행선이 유성을 지나칠 때
+            #비행선 왼쪽 좌표 유성 좌표 안 일때
+            #비행선 오른쪽 좌표 유성 좌표 안 일때
+            if(x > meteor_x and x<meteor_x + meteor_width) or \
+                (x+aircraft_width > meteor_x and x+aircraft_width < meteor_x+meteor_width):
+                crash()
+            #유성이 비행선 width 안일 때  
+            if x<meteor_x and x+aircraft_width > meteor_x+meteor_width:
+                crash()
+        #불덩이와 충돌
+        if fire[1] != None:
+            if fire[0] == 0:
+                fireball_width = fireball1_width
+                fireball_height = fireball1_height
+            elif fire[0] == 1:
+                fireball_width = fireball2_width
+                fireball_height = fireball2_height
             
+            if y < fire_y:
+                if(x > fire_x and x<fire_x + fireball_width) or \
+                    (x+fireball_width > fire_x and x+fireball_width < fire_x+fireball_width):
+                    crash()
+                #유성이 비행선 width 안일 때  
+                if x<fire_x and x+aircraft_width > fire_x+fireball_width:
+                    crash()
+
         #총알 위치
         if len(bullet_xy) != 0:
             for i, bxy in enumerate(bullet_xy):
@@ -130,9 +171,9 @@ def runGame():
         if len(bullet_xy) != 0:
             for bx, by in bullet_xy:
                 drawObject(bullet, bx, by)     
-        if not isShotMeteor:
+        if not isShotMeteor: #총알이 유성에 맞지 않았다면 실행
             drawObject(meteor, meteor_x, meteor_y)
-        else:
+        else: #총알이 유성에 맞으면 실행
             drawObject(boom, meteor_x, meteor_y)
             boom_count += 1
             if boom_count > 5:
@@ -159,11 +200,12 @@ def initGame():
     background1 = pygame.image.load('배경.png') #5. 배경로드
     background2 = background1.copy() #5-1 움직일 배경 복사
     meteor = pygame.image.load('메테오.png') #6-1. 장애물 로드
-    fires.append(pygame.image.load('fireball.png'))#6-2 장애물 로드
-    fires.append(pygame.image.load('fireball2.png'))#6-3 장애물 로드
+    #이미지 크기가 다르므로 식별자가 필요
+    fires.append((0,pygame.image.load('fireball.png')))#6-2 장애물 로드
+    fires.append((1,pygame.image.load('fireball2.png')))#6-3 장애물 로드
     
-    for i in range(5):  #불덩이 시간차
-        fires.append(None)
+    for i in range(3):  #불덩이 시간차
+        fires.append((i+2,None))
         
     bullet = pygame.image.load('bullet.png') #7 총알 로드
     boom = pygame.image.load('boom.png')#8 피격 이펙트 로드
